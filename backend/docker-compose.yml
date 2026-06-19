@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: outbound-api
+    ports:
+      - "3000:3000"
+    env_file: .env
+    restart: unless-stopped
+    command: npm start
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    build: .
+    container_name: outbound-worker
+    env_file: .env
+    restart: unless-stopped
+    command: node src/workers/callWorker.js
+    depends_on:
+      api:
+        condition: service_healthy

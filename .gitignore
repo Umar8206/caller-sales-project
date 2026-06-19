@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Archives (use git history instead)
+*.zip
+*.tar.gz
+
+# Sensitive files
+twilio_2FA_recovery_code.txt
