@@ -1,9 +1,10 @@
 const express = require('express');
 const router  = express.Router();
 const crypto  = require('crypto');
-const { parseWebhookPayload } = require('../services/elevenLabsService');
+const { parseWebhookPayload, extractIntakeFormData } = require('../services/elevenLabsService');
 const Lead        = require('../models/Lead');
 const CallSession = require('../models/CallSession');
+const IntakeForm  = require('../models/IntakeForm');
 
 // ── POST /webhooks/elevenlabs ─────────────────────────────────────────────────
 // Configure this URL in ElevenLabs: Agent → Webhooks → Add endpoint
@@ -35,7 +36,8 @@ router.post('/elevenlabs', async (req, res) => {
   const parsed = parseWebhookPayload(data);
   const { conversationId, terminationReason, durationSeconds,
           transcript, transcriptText, detectedOutcome, appointmentNotes,
-          summary, recordingUrl, leadId } = parsed;
+          summary, recordingUrl, leadId,
+          rawDataCollection, intakeCompleted } = parsed;
 
   console.log(`[Webhook] ${type}  conv=${conversationId}  reason=${terminationReason}  outcome=${detectedOutcome}`);
 
@@ -97,10 +99,52 @@ router.post('/elevenlabs', async (req, res) => {
       }
     );
 
+    // ── Save intake form data ─────────────────────────────────────────────────
+    const intakeData = extractIntakeFormData(rawDataCollection || {});
+    const hasIntakeData = intakeData.areaOfInterest
+      || intakeData.medications.length > 0
+      || intakeData.hasMajorHealthEvent !== null
+      || intakeData.usesTobacco !== null
+      || intakeData.burialPreference
+      || intakeData.referrals.length > 0;
+
+    let intakeFormId = null;
+    if (hasIntakeData) {
+      try {
+        const form = await IntakeForm.findOneAndUpdate(
+          { leadId: resolvedLeadId },
+          {
+            $set: {
+              conversationId,
+              areaOfInterest:             intakeData.areaOfInterest,
+              incomeProtectionPreference: intakeData.incomeProtectionPreference,
+              medications:                intakeData.medications,
+              hasMajorHealthEvent:        intakeData.hasMajorHealthEvent,
+              healthEventDetails:         intakeData.healthEventDetails,
+              usesTobacco:                intakeData.usesTobacco,
+              financialBurdenPreference:  intakeData.financialBurdenPreference,
+              burialPreference:           intakeData.burialPreference,
+              funeralHome:                intakeData.funeralHome,
+              referrals:                  intakeData.referrals,
+              isPartial:                  !intakeData.intakeCompleted,
+              ...(intakeData.intakeCompleted && { completedAt: new Date() }),
+            },
+          },
+          { upsert: true, new: true }
+        );
+        intakeFormId = form._id;
+        console.log(`[Webhook] IntakeForm saved for lead ${resolvedLeadId} (partial: ${form.isPartial})`);
+      } catch (intakeErr) {
+        console.error('[Webhook] Failed to save intake form:', intakeErr.message);
+      }
+    }
+
     // Determine final lead status
     let newStatus = lead.status;
     if (detectedOutcome === 'appointment_set') {
       newStatus = 'appointment_set';
+    } else if (intakeCompleted) {
+      newStatus = 'intake_completed';
     } else if (detectedOutcome === 'declined') {
       newStatus = 'declined';
     } else if (durationSeconds < 15) {
@@ -131,6 +175,7 @@ router.post('/elevenlabs', async (req, res) => {
       finalTranscript: transcriptText,
       finalAudioUrl:   recordingUrl,
       finalCallSid:    conversationId,
+      ...(intakeFormId && { intakeFormId }),
     };
     if (newStatus === 'appointment_set' && appointmentNotes) {
       leadUpdate.appointmentNotes = appointmentNotes;

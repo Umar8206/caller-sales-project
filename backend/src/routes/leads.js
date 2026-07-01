@@ -4,6 +4,7 @@ const multer   = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const Lead        = require('../models/Lead');
 const CallSession = require('../models/CallSession');
+const IntakeForm  = require('../models/IntakeForm');
 const { parseExcel, parseWord, validateLead } = require('../services/leadParser');
 
 const upload = multer({
@@ -61,8 +62,13 @@ router.get('/:id', async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
     if (!lead || lead.isDeleted) return res.status(404).json({ error: 'Not found' });
-    const sessions = await CallSession.find({ leadId: lead._id }).sort({ initiatedAt: -1 }).lean();
-    res.json({ ...lead.toObject(), callSessions: sessions });
+    const [sessions, intakeForm] = await Promise.all([
+      CallSession.find({ leadId: lead._id }).sort({ initiatedAt: -1 }).lean(),
+      lead.intakeFormId
+        ? IntakeForm.findById(lead.intakeFormId).lean()
+        : Promise.resolve(null),
+    ]);
+    res.json({ ...lead.toObject(), callSessions: sessions, intakeForm });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

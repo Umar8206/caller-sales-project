@@ -145,6 +145,8 @@ function parseWebhookPayload(data) {
     leadAge       ? `age: ${leadAge}`         : '',
   ].filter(Boolean).join(' | ');
 
+  const intakeCompleted = collected.intake_completed?.value === true;
+
   return {
     conversationId:    data.conversation_id,
     status:            data.status,
@@ -160,7 +162,49 @@ function parseWebhookPayload(data) {
     summary:           analysis.transcript_summary || '',
     recordingUrl:      data.recording_url || '',
     leadId:            data.metadata?.lead_id || data.dynamic_variables?.lead_id || '',
+    rawDataCollection: collected,
+    intakeCompleted,
   };
 }
 
-module.exports = { initiateCall, getConversation, parseWebhookPayload };
+/**
+ * Extract intake form fields from the ElevenLabs data_collection object.
+ * ElevenLabs wraps each collected field as { value: <actual>, ... }.
+ * Flat medication_N and referral_N fields are reassembled into arrays.
+ */
+function extractIntakeFormData(collected) {
+  const val = (key) => {
+    const entry = collected[key];
+    if (!entry) return undefined;
+    return entry.value ?? undefined;
+  };
+
+  const medications = [];
+  for (let i = 1; i <= 3; i++) {
+    const name   = val(`medication_${i}_name`);
+    const reason = val(`medication_${i}_reason`);
+    if (name || reason) medications.push({ name: name || '', reason: reason || '' });
+  }
+
+  const referrals = [];
+  for (let i = 1; i <= 10; i++) {
+    const name = val(`referral_${i}`);
+    if (name) referrals.push({ name });
+  }
+
+  return {
+    areaOfInterest:             val('area_of_interest')             ?? null,
+    incomeProtectionPreference: val('income_protection_preference') ?? null,
+    medications,
+    hasMajorHealthEvent:        val('has_major_health_event')       ?? null,
+    healthEventDetails:         val('health_event_details')         || '',
+    usesTobacco:                val('uses_tobacco')                 ?? null,
+    financialBurdenPreference:  val('financial_burden_preference')  ?? null,
+    burialPreference:           val('burial_preference')            ?? null,
+    funeralHome:                val('funeral_home')                 || '',
+    referrals,
+    intakeCompleted:            val('intake_completed')             === true,
+  };
+}
+
+module.exports = { initiateCall, getConversation, parseWebhookPayload, extractIntakeFormData };

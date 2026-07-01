@@ -16,6 +16,111 @@ function InfoRow({ label, value }) {
   )
 }
 
+const AREA_LABELS = {
+  income_protection: 'Income Protection',
+  final_expense:     'Final Expense Planning',
+  both:              'Income Protection and Final Expense Planning',
+}
+const INCOME_PREF_LABELS = {
+  keep_coming_in:   'Keep coming in',
+  stop_right_there: 'Stop right there',
+}
+const BURDEN_LABELS = {
+  blessing: 'Blessing (fully covered)',
+  burden:   'Burden (not covered)',
+}
+const BURIAL_LABELS = {
+  cremated: 'Cremated (~$3k–$5k)',
+  buried:   'Buried (~$9k–$15k)',
+}
+const boolLabel = (v) => v === true ? 'Yes' : v === false ? 'No' : null
+
+function IntakeFormCard({ form }) {
+  if (!form) return null
+
+  const hasMeds = form.medications && form.medications.length > 0
+  const hasRefs = form.referrals   && form.referrals.length   > 0
+  const hasFinalExpense = form.financialBurdenPreference || form.burialPreference || form.funeralHome
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Intake Form</h2>
+        {form.isPartial && (
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Partial</span>
+        )}
+      </div>
+
+      {/* Area of interest */}
+      {form.areaOfInterest && (
+        <div className="mb-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Area of Interest</p>
+          <InfoRow label="Interest" value={AREA_LABELS[form.areaOfInterest]} />
+        </div>
+      )}
+
+      {/* Income protection */}
+      {form.incomeProtectionPreference && (
+        <div className="mb-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Income Protection</p>
+          <InfoRow label="Preference" value={INCOME_PREF_LABELS[form.incomeProtectionPreference]} />
+        </div>
+      )}
+
+      {/* Health */}
+      <div className="mb-3">
+        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Health</p>
+        <InfoRow label="Tobacco use"        value={boolLabel(form.usesTobacco)} />
+        <InfoRow label="Major health event" value={boolLabel(form.hasMajorHealthEvent)} />
+        {form.healthEventDetails && (
+          <InfoRow label="Event details" value={form.healthEventDetails} />
+        )}
+        {hasMeds && (
+          <div className="mt-2 space-y-1">
+            <p className="text-xs text-gray-400">Medications:</p>
+            {form.medications.map((med, i) => (
+              <div key={i} className="text-sm pl-2 border-l-2 border-gray-100">
+                <span className="font-medium">{med.name}</span>
+                {med.reason && <span className="text-gray-400"> — {med.reason}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Final expense */}
+      {hasFinalExpense && (
+        <div className="mb-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Final Expense</p>
+          <InfoRow label="Burden preference" value={BURDEN_LABELS[form.financialBurdenPreference]} />
+          <InfoRow label="Burial preference" value={BURIAL_LABELS[form.burialPreference]} />
+          <InfoRow label="Funeral home"      value={form.funeralHome} />
+        </div>
+      )}
+
+      {/* Referrals */}
+      {hasRefs && (
+        <div className="mb-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+            Referrals ({form.referrals.length})
+          </p>
+          <div className="space-y-1">
+            {form.referrals.map((ref, i) => (
+              <p key={i} className="text-sm text-gray-700">{i + 1}. {ref.name}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {form.completedAt && (
+        <p className="text-xs text-gray-400 mt-2">
+          Completed {format(new Date(form.completedAt), 'MMM d, yyyy h:mm a')}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function LeadDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -135,6 +240,9 @@ export default function LeadDetail() {
               </div>
             </div>
           )}
+
+          {/* Intake form */}
+          <IntakeFormCard form={lead.intakeForm} />
 
           {/* Call history */}
           <div className="card p-5">

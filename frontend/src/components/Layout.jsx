@@ -1,5 +1,11 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Phone, LayoutDashboard, Users } from 'lucide-react'
+import { Phone, LayoutDashboard, Users, FileText } from 'lucide-react'
+
+const NAV = [
+  { to: '/',      end: true,  icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/leads', end: false, icon: Users,            label: 'Leads' },
+  { to: '/forms', end: false, icon: FileText,         label: 'Forms' },
+]
 
 export default function Layout() {
   return (
@@ -19,18 +25,21 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`
-            }
-          >
-            <LayoutDashboard size={16} />
-            Dashboard
-          </NavLink>
+          {NAV.map(({ to, end, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`
+              }
+            >
+              <Icon size={16} />
+              {label}
+            </NavLink>
+          ))}
         </nav>
 
         <div className="px-4 py-4 border-t border-gray-700 text-xs text-gray-500">

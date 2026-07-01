@@ -22,8 +22,9 @@ const LeadSchema = new mongoose.Schema({
     enum: [
       'pending',          // ready to call
       'calling',          // actively being called right now
-      'appointment_set',  // lead agreed to a meeting with the sales agent
-      'declined',         // lead said no
+      'appointment_set',   // lead agreed to a meeting with the sales agent
+      'intake_completed',  // lead completed the intake questionnaire
+      'declined',          // lead said no
       'no_answer',        // no pick-up — will retry
       'busy',             // line busy — will retry
       'failed',           // API/technical error — will retry
@@ -40,6 +41,7 @@ const LeadSchema = new mongoose.Schema({
 
   // Appointment details extracted from the call
   appointmentNotes: { type: String, default: '' },  // e.g. "Tuesday 3pm" or "call me back tomorrow"
+  intakeFormId: { type: mongoose.Schema.Types.ObjectId, ref: 'IntakeForm', default: null },
 
   callAttempts: [CallAttemptSchema],
 
